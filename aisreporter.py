@@ -1,19 +1,49 @@
 import serial, socket
 import prometheus_client as prom
 import logging
+from configparser import ConfigParser
 
-logging.basicConfig(level=logging.DEBUG)
+config = ConfigParser()
+config.read("aisreporter.ini")
+
+def ConfigSectionMap(section):
+    dict1 = {}
+    options = config.options(section)
+    for option in options:
+        try:
+            dict1[option] = config.get(section, option)
+            if dict1[option] == -1:
+                DebugPrint("skip: %s" % option)
+        except:
+            print("exception on %s!" % option)
+            dict1[option] = None
+    return dict1
+
+debug = eval(ConfigSectionMap("generic")['debug'])
+if debug == 1:
+    logging.basicConfig(level=logging.DEBUG)
+else:
+    logging.basicConfig(level=logging.ERROR)
 
 # port to have your metrics on
-prometheusport = 9073
+metrics = eval(ConfigSectionMap("generic")['metrics'])
+if metrics == 1:
+    prometheusport = eval(ConfigSectionMap("generic")['metricsport'])
 
 # set your marinetraffic.com ip and port assigned to your receiver
-marinetrafficip = "5.9.207.224"
-marinetrafficport = 6727
+marinetrafficenabled = eval(ConfigSectionMap("marinetraffic")['enabled'])
+if marinetrafficenabled == 1:
+    marinetrafficip = ConfigSectionMap("marinetraffic")['ip']
+    marinetrafficport = eval(ConfigSectionMap("marinetraffic")['port'])
+
+aishubenabled = eval(ConfigSectionMap("aishub")['enabled'])
+if aishubenabled == 1:
+    aishubip = ConfigSectionMap("aishub")['ip']
+    aishubport = eval(ConfigSectionMap("aishub")['port'])
 
 # serial ais device
-serialport = '/dev/ttyACM0'
-serialbaud = 57600
+serialport = ConfigSectionMap("generic")['serialport']
+serialbaud = eval(ConfigSectionMap("generic")['serialbaud'])
 
 
 class SendAIS:
@@ -46,22 +76,31 @@ except:
     logger.error('Serial connection failed!')
     exit()
 
+if marinetrafficenabled:
+    marinetraffic = SendAIS(marinetrafficip, marinetrafficport)
 
-packetsend = SendAIS(marinetrafficip, marinetrafficport)
-metric = MetricsAis(prometheusport)
+if aishubenabled:
+    aishub = SendAIS(aishubip, aishubport)
+
+
+if metrics == 1:
+    metric = MetricsAis(prometheusport)
 
 while 1:
     line = daisy.readline().decode('ASCII')
-
-    if (line[0] == '!'):
-        packetsend.sendframe(line.strip())
-        metric.incais(1)
+    print(line)
+    if (line[0:6] == '!AIVDM'):
+        if marinetrafficenabled == 1:
+            marinetraffic.sendframe(line.strip())
+        if aishubenabled == 1:
+            aishub.sendframe(line.strip())
+        if metrics == 1: metric.incais(1)
         logging.debug('received frame: %s', line)
     elif (line[0:16] == 'error: RSSI drop'):
-        metric.incerror(1)
+        if metrics == 1: metric.incerror(1)
         logging.debug("RSSI Drop Error")
     elif (line[0:16] == 'error: CRC error'):
-        metric.incerror(1)
+        if metrics == 1: metric.incerror(1)
         logging.debug("CRC failure")
 
 daisy.close()
