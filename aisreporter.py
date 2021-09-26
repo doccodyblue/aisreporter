@@ -26,12 +26,10 @@ if debug == 1:
 else:
     logging.basicConfig(level=logging.ERROR)
 
-# port to have your metrics on
 metrics = eval(ConfigSectionMap("generic")['metrics'])
 if metrics == 1:
     prometheusport = eval(ConfigSectionMap("generic")['metricsport'])
 
-# set your marinetraffic.com ip and port assigned to your receiver
 marinetrafficenabled = eval(ConfigSectionMap("marinetraffic")['enabled'])
 if marinetrafficenabled == 1:
     marinetrafficip = ConfigSectionMap("marinetraffic")['ip']
@@ -42,7 +40,6 @@ if aishubenabled == 1:
     aishubip = ConfigSectionMap("aishub")['ip']
     aishubport = eval(ConfigSectionMap("aishub")['port'])
 
-# serial ais device
 serialport = ConfigSectionMap("generic")['serialport']
 serialbaud = eval(ConfigSectionMap("generic")['serialbaud'])
 
