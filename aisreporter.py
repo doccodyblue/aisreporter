@@ -1,4 +1,5 @@
-import serial, socket
+import serial
+import socket
 import prometheus_client as prom
 import logging
 from configparser import ConfigParser
@@ -6,18 +7,18 @@ from configparser import ConfigParser
 config = ConfigParser()
 config.read("aisreporter.ini")
 
+
 def ConfigSectionMap(section):
     dict1 = {}
     options = config.options(section)
     for option in options:
         try:
             dict1[option] = config.get(section, option)
-            if dict1[option] == -1:
-                DebugPrint("skip: %s" % option)
         except:
             print("exception on %s!" % option)
             dict1[option] = None
     return dict1
+
 
 debug = eval(ConfigSectionMap("generic")['debug'])
 if debug == 1:
@@ -55,16 +56,18 @@ class SendAIS:
 
     def sendframe(self, packetdata):
         self.sock.sendto(bytes(packetdata, "ASCII"), (self.UDP_IP, self.UDP_PORT))
-        self.sentPackets +=1
+        self.sentPackets += 1
 
 class MetricsAis:
     def __init__(self, port):
-        self.aissent = prom.Counter('ais_frames_forwarded','AIS packets forwarded')
-        self.aiserror = prom.Counter('ais_decode_errors','AIS decode errors')
+        self.aissent = prom.Counter('ais_frames_forwarded', 'AIS packets forwarded')
+        self.aiserror = prom.Counter('ais_decode_errors', 'AIS decode errors')
         prom.start_http_server(port)
+
 
     def incais(self, value):
         self.aissent.inc(value)
+
 
     def incerror(self, value):
         self.aiserror.inc(value)
@@ -73,7 +76,7 @@ class MetricsAis:
 try:
     daisy = serial.Serial(serialport, serialbaud)
 except:
-    logger.error('Serial connection failed!')
+    logging.error('Serial connection failed!')
     exit()
 
 if marinetrafficenabled:
@@ -89,18 +92,21 @@ if metrics == 1:
 while 1:
     line = daisy.readline().decode('ASCII')
     print(line)
-    if (line[0:6] == '!AIVDM'):
+    if line[0:6] == '!AIVDM':
         if marinetrafficenabled == 1:
             marinetraffic.sendframe(line.strip())
         if aishubenabled == 1:
             aishub.sendframe(line.strip())
-        if metrics == 1: metric.incais(1)
+        if metrics == 1:
+            metric.incais(1)
         logging.debug('received frame: %s', line)
-    elif (line[0:16] == 'error: RSSI drop'):
-        if metrics == 1: metric.incerror(1)
+    elif line[0:16] == 'error: RSSI drop':
+        if metrics == 1:
+            metric.incerror(1)
         logging.debug("RSSI Drop Error")
-    elif (line[0:16] == 'error: CRC error'):
-        if metrics == 1: metric.incerror(1)
+    elif line[0:16] == 'error: CRC error':
+        if metrics == 1:
+            metric.incerror(1)
         logging.debug("CRC failure")
 
 daisy.close()
