@@ -40,6 +40,11 @@ if aishubenabled == 1:
     aishubip = ConfigSectionMap("aishub")['ip']
     aishubport = eval(ConfigSectionMap("aishub")['port'])
 
+aprsenabled = eval(ConfigSectionMap("aprs")['enabled'])
+if aprsenabled == 1:
+    aprsurl = ConfigSectionMap("aprs")['url']
+    aprsname = eval(ConfigSectionMap("aprs")['name'])
+
 serialport = ConfigSectionMap("generic")['serialport']
 serialbaud = eval(ConfigSectionMap("generic")['serialbaud'])
 
@@ -55,16 +60,15 @@ class SendAIS:
         self.sock.sendto(bytes(packetdata, "ASCII"), (self.UDP_IP, self.UDP_PORT))
         self.sentPackets += 1
 
+
 class MetricsAis:
     def __init__(self, port):
         self.aissent = prom.Counter('ais_frames_forwarded', 'AIS packets forwarded')
         self.aiserror = prom.Counter('ais_decode_errors', 'AIS decode errors')
         prom.start_http_server(port)
 
-
     def incais(self, value):
         self.aissent.inc(value)
-
 
     def incerror(self, value):
         self.aiserror.inc(value)
@@ -82,6 +86,8 @@ if marinetrafficenabled:
 if aishubenabled:
     aishub = SendAIS(aishubip, aishubport)
 
+if aprsenabled:
+    aprs = AisAprs(aprsname, aprsurl)
 
 if metrics == 1:
     metric = MetricsAis(prometheusport)
@@ -90,12 +96,20 @@ while 1:
     line = daisy.readline().decode('ASCII')
     print(line)
     if line[0:6] == '!AIVDM':
+
         if marinetrafficenabled == 1:
             marinetraffic.sendframe(line.strip())
+
         if aishubenabled == 1:
             aishub.sendframe(line.strip())
+
+        if aprsenabled == 1:
+            jsonaprs = aprs.parsetojson(line.strip())
+            aprs.sendframe(jsonaprs)
+
         if metrics == 1:
             metric.incais(1)
+
         logging.debug('received frame: %s', line)
     elif line[0:16] == 'error: RSSI drop':
         if metrics == 1:
