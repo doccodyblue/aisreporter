@@ -1,7 +1,7 @@
 import json
-import ais.stream
 import datetime
 import requests
+from pyais import decode_msg
 
 
 class AisAprs:
@@ -11,36 +11,41 @@ class AisAprs:
         self.url = url
 
     def parsetojson(self, frame):
-        msg = ais.stream.decode(frame, keep_nmea=True)
-        rxtime = datetime.datetime.utcnow().strftime("%Y%m%d%H%M%S")  # YYYYMMDDHHMMSS
-        parsed = json.loads(json.dumps(msg))
+        try:
+            msg = decode_msg(frame)
+        except:  # todo needs proper error handling
+            print('ERROR: missing multipart')
+            return
 
+        rxtime = datetime.datetime.utcnow().strftime("%Y%m%d%H%M%S")
+
+        parsed = json.loads(json.dumps(msg))
         aisframe = {
-            'msgtype': parsed['id'],
+            'msgtype': parsed['type'],
             'mmsi': parsed['mmsi'],
             'rxtime': rxtime
         }
 
-        if 'x' in parsed:
-            aisframe['lon'] = parsed['x']
-        if 'y' in parsed:
-            aisframe['lat'] = parsed['y']
-        if 'sog' in parsed:
-            aisframe['speed'] = parsed['sog']
-        if 'cog' in parsed:
-            aisframe['course'] = parsed['cog']
-        if 'true_heading' in parsed:
-            aisframe['heading'] = parsed['true_heading']
-        if 'nav_status' in parsed:
-            aisframe['status'] = parsed['nav_status']
-        if 'type_and_cargo' in parsed:
-            aisframe['shiptype'] = parsed['type_and_cargo']
+        if 'lon' in parsed:
+            aisframe['lon'] = parsed['lon']
+        if 'lat' in parsed:
+            aisframe['lat'] = parsed['lat']
+        if 'speed' in parsed:
+            aisframe['speed'] = parsed['speed']
+        if 'course' in parsed:
+            aisframe['course'] = parsed['course']
+        if 'heading' in parsed:
+            aisframe['heading'] = parsed['heading']
+        if 'status' in parsed:
+            aisframe['status'] = parsed['status']
+        if 'shiptype' in parsed:
+            aisframe['shiptype'] = parsed['shiptype']
         if 'part_num' in parsed:
             aisframe['partno'] = parsed['part_num']
         if 'callsign' in parsed:
             aisframe['callsign'] = parsed['callsign']
-        if 'name' in parsed:
-            aisframe['shipname'] = parsed['name']
+        if 'shipname' in parsed:
+            aisframe['shipname'] = parsed['shipname']
         if 'vendor_id' in parsed:
             aisframe['vendorid'] = parsed['vendor_id']
         if 'dim_a' in parsed:
@@ -75,7 +80,7 @@ class AisAprs:
         post = json.dumps(output)
         return post
 
-    def aprssendframe(self, post):
+    def sendframe(self, post):
         try:
             r = requests.post(self.url, files={'jsonais': (None, post)})
         except requests.exceptions.RequestException as e:

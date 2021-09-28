@@ -3,6 +3,8 @@ import socket
 import prometheus_client as prom
 import logging
 from configparser import ConfigParser
+from aisjson import AisAprs
+
 
 config = ConfigParser()
 config.read("aisreporter.ini")
@@ -43,13 +45,14 @@ if aishubenabled == 1:
 aprsenabled = eval(ConfigSectionMap("aprs")['enabled'])
 if aprsenabled == 1:
     aprsurl = ConfigSectionMap("aprs")['url']
-    aprsname = eval(ConfigSectionMap("aprs")['name'])
+    aprsname = ConfigSectionMap("aprs")['name']
 
 serialport = ConfigSectionMap("generic")['serialport']
 serialbaud = eval(ConfigSectionMap("generic")['serialbaud'])
 
 
 class SendAIS:
+    # todo error handling if network is not reachable
     def __init__(self, ip, port):
         self.sentPackets = 0
         self.UDP_IP = ip
@@ -65,6 +68,7 @@ class MetricsAis:
     def __init__(self, port):
         self.aissent = prom.Counter('ais_frames_forwarded', 'AIS packets forwarded')
         self.aiserror = prom.Counter('ais_decode_errors', 'AIS decode errors')
+        self.aismissingmulti = prom.Counter('ais_decode_missingmultipart', 'AIS missing multipart')
         prom.start_http_server(port)
 
     def incais(self, value):
@@ -72,6 +76,10 @@ class MetricsAis:
 
     def incerror(self, value):
         self.aiserror.inc(value)
+
+    def incmissingmulti(self, value):
+        self.aismissingmulti.inc(value)
+
 
 
 try:
@@ -82,21 +90,23 @@ except:
 
 if marinetrafficenabled:
     marinetraffic = SendAIS(marinetrafficip, marinetrafficport)
-
+    print('MarineTraffic enabled')
+    
 if aishubenabled:
     aishub = SendAIS(aishubip, aishubport)
-
+    print('AISHub enabled')
+    
 if aprsenabled:
     aprs = AisAprs(aprsname, aprsurl)
+    print('APRS.fi enabled')
 
 if metrics == 1:
     metric = MetricsAis(prometheusport)
-
+    print('Metrics enabled')
+    
 while 1:
     line = daisy.readline().decode('ASCII')
-    print(line)
     if line[0:6] == '!AIVDM':
-
         if marinetrafficenabled == 1:
             marinetraffic.sendframe(line.strip())
 
@@ -104,8 +114,11 @@ while 1:
             aishub.sendframe(line.strip())
 
         if aprsenabled == 1:
-            jsonaprs = aprs.parsetojson(line.strip())
-            aprs.sendframe(jsonaprs)
+            jsonaprs = aprs.parsetojson(line)
+            if jsonaprs == 'missing_multi':
+                metric.incmissingmulti(1)
+            else:
+                aprs.sendframe(jsonaprs)
 
         if metrics == 1:
             metric.incais(1)
