@@ -14,7 +14,6 @@ class AisAprs:
         try:
             msg = decode_msg(frame)
         except:  # todo needs proper error handling
-            print('ERROR: missing multipart')
             return
 
         rxtime = datetime.datetime.utcnow().strftime("%Y%m%d%H%M%S")
