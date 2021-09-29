@@ -2,7 +2,6 @@ import json
 import datetime
 import requests
 import logging
-#from pyais import decode_msg
 import pyais
 
 

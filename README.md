@@ -2,7 +2,7 @@ Simple Python code to receive AIS packets from serial receiver and push them to 
 
 If you have a valid password, it will also generate valid json for APRS.fi
 
-It was used with the dAISy AIS receiver but should work with any receiver sending out !AIVDM frames on a serial port.
+It is used with the dAISy AIS receiver here but should work with any receiver sending out !AIVDM frames on a serial port.
 Other frames will be ignored.
 
 Optional you will receive a prometheus metric on port 9073 for monitoring
