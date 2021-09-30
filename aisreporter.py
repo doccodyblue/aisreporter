@@ -2,6 +2,7 @@ import serial
 import socket
 import prometheus_client as prom
 import logging
+import time
 from datetime import datetime
 from configparser import ConfigParser
 from aisjson import AisAprs
@@ -53,7 +54,6 @@ serialbaud = eval(ConfigSectionMap("generic")['serialbaud'])
 
 
 class SendAIS:
-    # todo error handling if network is not reachable
     def __init__(self, ip, port):
         self.sentPackets = 0
         self.UDP_IP = ip
@@ -61,8 +61,14 @@ class SendAIS:
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 
     def sendframe(self, packetdata):
-        self.sock.sendto(bytes(packetdata, "ASCII"), (self.UDP_IP, self.UDP_PORT))
-        self.sentPackets += 1
+        try:
+            self.sock.sendto(bytes(packetdata, "ASCII"), (self.UDP_IP, self.UDP_PORT))
+            self.sentPackets += 1
+        except socket.error:
+            timeprint('E: socket.error in sendframe - waiting for 60 sec ')
+            time.sleep(60)
+        except Exception as e:
+            timeprint(e)
 
 
 class MetricsAis:
@@ -80,6 +86,7 @@ class MetricsAis:
 
     def incmissingmulti(self, value):
         self.aismissingmulti.inc(value)
+
 
 def timeprint(text):
     print(datetime.now(), ': ', text)
@@ -125,7 +132,6 @@ while 1:
             else:
                 aprs.sendframe(jsonaprs)
                 timeprint('S: APRS.fi')
-
 
         if metrics == 1:
             metric.incais(1)

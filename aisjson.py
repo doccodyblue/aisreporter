@@ -5,7 +5,6 @@ import logging
 import pyais
 
 
-
 class AisAprs:
     def __init__(self, call, url):
         self.sentPackets = 0
@@ -19,7 +18,7 @@ class AisAprs:
         except pyais.exceptions.MissingMultipartMessageException:
             return 'missing_multi'
 
-        except Exception as e:  # todo needs proper error handling
+        except Exception as e:
             print(e)
             return
 
@@ -91,7 +90,7 @@ class AisAprs:
             r = requests.post(self.url, files={'jsonais': (None, post)}, timeout=2)
 
         except requests.exceptions.ConnectionError:
-            self.conerror +=1
+            self.conerror += 1
             logging.warning('Connection error %s while connecting %s - not giving up', self.conerror, self.url)
 
         except requests.exceptions.RequestException as e:
