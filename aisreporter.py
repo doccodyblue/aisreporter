@@ -2,6 +2,7 @@ import serial
 import socket
 import prometheus_client as prom
 import logging
+from datetime import datetime
 from configparser import ConfigParser
 from aisjson import AisAprs
 
@@ -26,7 +27,7 @@ debug = eval(ConfigSectionMap("generic")['debug'])
 if debug == 1:
     logging.basicConfig(level=logging.DEBUG)
 else:
-    logging.basicConfig(level=logging.ERROR)
+    logging.basicConfig(level=logging.WARNING)
 
 metrics = eval(ConfigSectionMap("generic")['metrics'])
 if metrics == 1:
@@ -80,6 +81,8 @@ class MetricsAis:
     def incmissingmulti(self, value):
         self.aismissingmulti.inc(value)
 
+def timeprint(text):
+    print(datetime.now(), ': ', text)
 
 
 try:
@@ -90,35 +93,39 @@ except:
 
 if marinetrafficenabled:
     marinetraffic = SendAIS(marinetrafficip, marinetrafficport)
-    print('MarineTraffic enabled')
+    timeprint('MarineTraffic enabled')
     
 if aishubenabled:
     aishub = SendAIS(aishubip, aishubport)
-    print('AISHub enabled')
+    timeprint('AISHub enabled')
     
 if aprsenabled:
     aprs = AisAprs(aprsname, aprsurl)
-    print('APRS.fi enabled')
+    timeprint('APRS.fi enabled')
 
 if metrics == 1:
     metric = MetricsAis(prometheusport)
-    print('Metrics enabled')
+    timeprint('Metrics enabled')
     
 while 1:
     line = daisy.readline().decode('ASCII')
     if line[0:6] == '!AIVDM':
         if marinetrafficenabled == 1:
             marinetraffic.sendframe(line.strip())
-
+            timeprint('S: MarineTraffic')
         if aishubenabled == 1:
             aishub.sendframe(line.strip())
+            timeprint('S: AISHub')
 
         if aprsenabled == 1:
             jsonaprs = aprs.parsetojson(line)
             if jsonaprs == 'missing_multi':
                 metric.incmissingmulti(1)
+                timeprint('E: Missing multipart')
             else:
                 aprs.sendframe(jsonaprs)
+                timeprint('S: APRS.fi')
+
 
         if metrics == 1:
             metric.incais(1)

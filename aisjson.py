@@ -1,7 +1,10 @@
 import json
 import datetime
 import requests
-from pyais import decode_msg
+import logging
+#from pyais import decode_msg
+import pyais
+
 
 
 class AisAprs:
@@ -9,11 +12,16 @@ class AisAprs:
         self.sentPackets = 0
         self.call = call
         self.url = url
+        self.conerror = 0
 
     def parsetojson(self, frame):
         try:
-            msg = decode_msg(frame)
-        except:  # todo needs proper error handling
+            msg = pyais.decode_msg(frame)
+        except pyais.exceptions.MissingMultipartMessageException:
+            return 'missing_multi'
+
+        except Exception as e:  # todo needs proper error handling
+            print(e)
             return
 
         rxtime = datetime.datetime.utcnow().strftime("%Y%m%d%H%M%S")
@@ -81,8 +89,17 @@ class AisAprs:
 
     def sendframe(self, post):
         try:
-            r = requests.post(self.url, files={'jsonais': (None, post)})
-        except requests.exceptions.RequestException as e:
-            print(e)
+            r = requests.post(self.url, files={'jsonais': (None, post)}, timeout=2)
 
+        except requests.exceptions.ConnectionError:
+            self.conerror +=1
+            logging.warning('Connection error %s while connecting %s - not giving up', self.conerror, self.url)
+
+        except requests.exceptions.RequestException as e:
+            logging.warning('Request error while connecting %s - %s', self.url, e)
+
+        else:
+            self.conerror = 0
+            if r.status_code == 200:
+                return 1
 
