@@ -143,6 +143,7 @@ if metrics == 1:
     timeprint('Metrics enabled')
 
 rate = ThingsPerMinute()
+line = ""
 
 while 1:
     try:
