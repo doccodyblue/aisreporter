@@ -100,4 +100,3 @@ class AisAprs:
             self.conerror = 0
             if r.status_code == 200:
                 return 1
-
