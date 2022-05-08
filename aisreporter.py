@@ -145,7 +145,11 @@ if metrics == 1:
 rate = ThingsPerMinute()
 
 while 1:
-    line = daisy.readline().decode('ASCII')
+    try:
+        line = daisy.readline().decode('ASCII')
+    except:
+        logging.debug("dropped frame during decode")
+
     if line[0:6] == '!AIVDM':
         if marinetrafficenabled == 1:
             marinetraffic.sendframe(line.strip())
